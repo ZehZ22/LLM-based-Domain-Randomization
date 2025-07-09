@@ -9,12 +9,12 @@ from dr_config import randomize_environment_params
 
 # 初始化 LLM 客户端（DeepSeek）
 client = OpenAI(
-    api_key="输入你的api key",
+    api_key="你的api_key",
     base_url="https://api.deepseek.com/v1"
 )
 
-TOTAL_EPISODES = 100
-COLD_START_EPISODES = 50
+TOTAL_EPISODES = 500
+COLD_START_EPISODES = 300
 
 INITIAL_PROMPT = """
 你是一个强化学习专家，任务是调节风、流、浪扰动的强度，以提升USV路径跟踪策略的泛化能力。

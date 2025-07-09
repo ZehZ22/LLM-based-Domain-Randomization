@@ -5,7 +5,7 @@ import os
 # 创建一个随机扰动参数函数，接收外部传入的 domain_randomization_ranges
 def randomize_environment_params(dynamic_ranges=None, round_id=None, save_path='dr_log.csv'):
     # 是否处于冷启动阶段（轮数前100轮）
-    is_cold_start = (round_id is not None and round_id <= 50)
+    is_cold_start = (round_id is not None and round_id <= 300)
 
     # 冷启动阶段固定可选方向角度
     discrete_angles = [0.0, 45.0, 90.0, 135.0]

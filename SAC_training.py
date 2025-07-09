@@ -102,7 +102,7 @@ def update_data(env, episode_id=None):
             step_count += 1
 
         # 控制样本池大小
-        while len(datas) > 50000:
+        while len(datas) > 100000:
             datas.pop(0)
 
         if episode_id is not None:
@@ -155,6 +155,10 @@ def train_one_episode(dr_params, episode_id):
         print("⚠️ 当前仿真失败，跳过训练")
         return 0, {"status": "failed"}
 
+    # === 新增：loss统计 ===
+    value1_losses = []
+    policy_losses = []
+
     for _ in range(2000):
         sample = get_sample()
         if sample[0] is None: continue
@@ -163,11 +167,13 @@ def train_one_episode(dr_params, episode_id):
         target = get_target(next_state, reward, over).detach()
         value1, value2 = model_value1(state, action), model_value2(state, action)
         optimizer_value1.zero_grad()
-        loss_fn(value1, target).backward()
+        loss1 = loss_fn(value1, target)
+        loss1.backward()
         optimizer_value1.step()
 
         optimizer_value2.zero_grad()
-        loss_fn(value2, target).backward()
+        loss2 = loss_fn(value2, target)
+        loss2.backward()
         optimizer_value2.step()
 
         loss_action, entropy = get_loss_action(state)
@@ -183,7 +189,17 @@ def train_one_episode(dr_params, episode_id):
         soft_update(model_value1, model_value_next1)
         soft_update(model_value2, model_value_next2)
 
+        # === 新增：记录loss ===
+        value1_losses.append(loss1.item())
+        policy_losses.append(loss_action.item())
+
+    # === 新增：计算均值 ===
+    value_loss_avg = float(np.mean(value1_losses)) if value1_losses else 0
+    policy_loss_avg = float(np.mean(policy_losses)) if policy_losses else 0
+
     metrics, _ = evaluate_trajectory(env, model_action)
+    metrics["value_loss"] = value_loss_avg
+    metrics["policy_loss"] = policy_loss_avg
     with open("eval_metrics.json", "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2, ensure_ascii=False)
     return total_reward, metrics

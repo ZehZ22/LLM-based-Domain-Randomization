@@ -1,0 +1,8 @@
+{
+  "Mean_Cross_Track_Error": 30.7421296523484,
+  "Max_Cross_Track_Error": 149.5472326951802,
+  "Mean_Heading_Error": 11.484020654599787,
+  "Mean_Absolute_Rudder_Change": 0.00599494351965549,
+  "value_loss": 0.7115024350248277,
+  "policy_loss": 95.35701247024537
+}
