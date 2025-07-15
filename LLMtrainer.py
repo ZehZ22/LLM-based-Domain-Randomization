@@ -9,7 +9,7 @@ from utils.dr_config import randomize_environment_params
 
 # 初始化 LLM 客户端（DeepSeek）
 client = OpenAI(
-    api_key="sk-abd93e21f5c44b95b550c271d32a6ee8",
+    api_key="你的API",
     base_url="https://api.deepseek.com/v1"
 )
 
