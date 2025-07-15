@@ -46,7 +46,7 @@ class USVStateR:
                  current_speed=1.5, current_direction=155.0,  # 洋流参数
                  wave_height=3.0, wave_period=3.0, beta=70 * np.pi / 180, T4=3.0, GMT=1.0, Cb=0.65, U=7.7175, L=160.93,
                  B=30.0, T=6, a=2.0, zeta4=0.2,
-                 wind_mode="fixed", randomize_params=True, k1=1.0, k2=1.0, k3=1.0, w_chi=0.4, w_ey=0.5,
+                 wind_mode="fixed", randomize_params=True, k1=1.0, k2=1.5, k3=1.0, w_chi=0.5, w_ey=0.5,
                  w_sigma_delta=0.0, U0=7.7175, mass=798e-5):
 
         """
@@ -241,7 +241,8 @@ class USVStateR:
     def step(self, ui):
         dt = 0.1
         self.ui = ui[0]
-
+        # **存储上一次的航迹点距离**
+        self.previous_distance = self.distance_to_waypoint
         # 更新洋流参数
         self.V_c = self.current_speed / self.U0
         self.V_angle = np.radians(self.current_direction)
@@ -285,12 +286,19 @@ class USVStateR:
         done = self.check_done()
 
         if not done and self.distance_to_waypoint < 10:
-            self.current_index += 1
-            self.prev_waypoint = self.current_waypoint
-            self.current_waypoint = self.waypoints[self.current_index]
-            self.path_angle, self.waypoint_angle, self.distance_to_waypoint = self.calculate_path_parameters()
+            if self.current_index < len(self.waypoints) - 1:
+                print(f"✅ 更新航迹点: {self.current_waypoint} -> {self.waypoints[self.current_index + 1]}")
+                self.prev_waypoint = self.current_waypoint
+                self.current_index += 1
+                self.current_waypoint = self.waypoints[self.current_index]
+            else:
+                print("🚀 所有航迹点已完成")
 
         next_state = np.array([heading_error_scalar, cross_track_error_scalar, rudder_angle])
+        print(f"🚢 USV 当前位置 (Before Update): x={self.x[3]:.2f}, y={self.x[4]:.2f}")
+        print(f"🔢 当前索引: {self.current_index} / {len(self.waypoints) - 1}")
+        print(f"xdot before update: {xdot}")
+
         if np.isnan(xdot).any() or np.isinf(xdot).any() or (np.abs(xdot) > 1e6).any():
             print("⚠️ xdot contains NaN, Inf, or extreme values!", xdot)
             xdot = np.clip(xdot, -1e6, 1e6)  # 限制 `xdot` 绝对值最大为 1e6
@@ -331,14 +339,48 @@ class USVStateR:
         else:
             sigma_delta = 0
         r_sigma_delta = -self.k3 * sigma_delta
+        # 如果横向误差超过 50 米，给予较大的负奖励
+        if np.abs(self.cross_track_error) > 50:
+            r_ey = -100  # 给一个大的负奖励，表示任务失败
 
-        reward = self.w_chi * r_chi + self.w_ey * r_ey + self.w_sigma_delta * r_sigma_delta
+        # 计算目标点接近奖励
+        r_distance = max(0, 10 - 0.1 * self.distance_to_waypoint)  # 简单的距离奖励
+
+        # 终点奖励
+        r_goal = 50 if self.current_index >= len(self.waypoints) - 1 and self.distance_to_waypoint < 5 else 0
+        # 最终奖励
+        reward = (
+                self.w_chi * r_chi +  # 航向误差惩罚
+                self.w_ey * r_ey +  # 横向误差惩罚
+                r_distance +  # 目标点靠近奖励
+                r_goal  # 终点奖励
+        )
+
+        # 限制奖励范围
+        reward = np.clip(reward, -50, 50)
+
+        if np.isnan(reward) or np.isinf(reward):
+            print("⚠️ Reward contains NaN or Inf!", reward)
+            reward = 0  # **防止训练崩溃**
+
         return reward
 
     def check_done(self):
-        if self.current_index >= len(self.waypoints) - 1:
-            return True
-        return False
+        #如果横向误差超过 50 米，任务失败
+        if np.abs(self.cross_track_error) > 500:
+            print(f"⚠️ Task failed: Cross-track error is too large ({self.cross_track_error:.2f} m).")
+            return True  # 返回 True 表示任务失败
+
+        distance_to_goal = np.sqrt(
+            (self.x[4] - self.waypoints[-1][1]) ** 2 +
+            (self.x[3] - self.waypoints[-1][0]) ** 2
+        )
+
+        print(f"🎯 终点位置: {self.waypoints[-1]}")
+        print(f"🚢 USV 当前位置: x={self.x[3]:.2f}, y={self.x[4]:.2f}")
+        print(f"📏 到终点距离: {distance_to_goal:.2f} m")
+
+        return distance_to_goal < 5  # 终点判定
 
     def reset(self):
         self.current_index = 1

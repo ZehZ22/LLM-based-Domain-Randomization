@@ -348,7 +348,7 @@ class USVState:
         # initial_x = self.randomize_value(300.0, 0.0, no_seed_random)  # 随机化初始 x 坐标
         # initial_y = self.randomize_value(0.0, 0.0, no_seed_random)  # 随机化初始 y 坐标
         # 初始化状态，艏向角使用随机化的角度
-        self.x = np.array([0.0, 0.0, 0.0, 300.0, 0.0, np.radians(20), 0.0])
+        self.x = np.array([0.0, 0.0, 0.0, 300, 0, 20, 0.0])
         self.ui = 0.0
         self.delta_history = []
 
